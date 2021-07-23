@@ -1,8 +1,8 @@
-# Matador
+# Cybrarian
 Written in bash for compatitbility purposes
 A secure backup script and backup agent for cyber competitions
 Script componenets:
-- Matador.sh
+- Cybrarian.sh
 - Apprentice.sh
 
 Matador is the management script used by the admin to manage backups and implement manual backups.
