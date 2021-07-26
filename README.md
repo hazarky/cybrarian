@@ -1,4 +1,6 @@
 # Cybrarian
+![cybary](img/librarian.jpg)
+
 Written in bash for compatitbility purposes
 A secure backup script and backup agent for cyber competitions
 Script componenets:
