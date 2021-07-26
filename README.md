@@ -9,7 +9,7 @@ Script componenets:
 
 Script requirements:
 - secure copy (scp)
-- openssl
+- openssl (uses specifically aes-256-cbc with salt)
 - Must be root to execute properly.
 
 
