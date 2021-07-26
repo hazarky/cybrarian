@@ -45,8 +45,8 @@ if [[ -d /etc/httpd ]]; then
         HTTPC=/etc/httpd
         HTTPD=/var/www
         HTTPV=/var/log/httpd
-elif [[ -d /etc/apache ]]; then
-        HTTPC=/etc/apache
+elif [[ -d /etc/apache2 ]]; then
+        HTTPC=/etc/apache2
         HTTPD=/var/www
         HTTPV=/var/log/httpd
 fi
@@ -182,9 +182,9 @@ options(){
             cp -R $SSHD $HOMESERV
         fi
         tar -cpzf $DESTINATION $HOME #create the backup
-        chmod 600 $DESTINAITON #Apply respecting permissions
+        chmod 600 $DESTINATION #Apply respecting permissions
         #Apply password encryption
-        echo 'Enter encrypted passphrase for $DESTINATION (This will be used for reoccuring backups):  '
+        echo "Enter encrypted passphrase for $DESTINATION (This will be used for reoccuring backups):  "
         read PHRASE
         ENCFILE=$HOME$BACKUPTIME.encrypt
         #if [[ -e /usr/bin/gpg ]]; then
@@ -211,10 +211,12 @@ options(){
             scp $ENCFILE $NAME@$ADDRESS:$DIRECT
             echo "Secure Copy Completed"
         fi
-        chmod 700 $CODEDIR/childbackup.sh
-        touch /var/spool/cron/root
-        /usr/bin/crontab /var/spool/cron/root
-        echo "*/15 * * * * /usr/bash/ $HOME$CODEDIR/childbackup.sh $PHRASE >> /var/spool/cron/root"
+        cp apprentice.sh $CODEDIR/apprentice.sh
+        chmod 700 $CODEDIR/apprentice.sh
+        (crontab -l && echo "*/15 * * * * $CODEDIR/apprentice.sh $PHRASE") |crontab -
+        #touch /var/spool/cron/root
+        #/usr/bin/crontab /var/spool/cron/root
+        #echo "*/15 * * * * /usr/bash/ $HOME$CODEDIR/apprentice.sh $PHRASE" >> /var/spool/cron/root
 
     elif [[ $CHOICE -eq 3 ]]; then
         echo "Please enter the backup file to implement: "
