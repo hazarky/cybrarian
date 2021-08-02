@@ -213,6 +213,200 @@ options(){
         fi
         cp apprentice.sh $CODEDIR/apprentice.sh
         chmod 700 $CODEDIR/apprentice.sh
+        echo "Please enter the crontab timeframe"
+        echo "Syntax: * * * * * "
+        read CRONENT
+        (crontab -l && echo "$CRONENT $CODEDIR/apprentice.sh $PHRASE") |crontab -
+        #touch /var/spool/cron/root
+        #/usr/bin/crontab /var/spool/cron/root
+        #echo "*/15 * * * * /usr/bash/ $HOME$CODEDIR/apprentice.sh $PHRASE" >> /var/spool/cron/root
+
+    elif [[ $CHOICE -eq 3 ]]; then
+        echo "Please enter the backup file to implement: "
+        read -r FILENAME
+        #if [[ -e /usr/bin/gpg ]]; thens
+        #    gpg --passphrase $PHRASE -d $FILENAME >> $CODEDIR/decrypt.tar.gz
+        #else #insecure due to padding issues
+        #    openssl aes-256-cbc -d -a -in $FILENAME -out $CODEDIR/decrypt.tar.gz -k $PHRASE #decrypt the file
+        #fi
+        echo $FILENAME
+        if [[ -e /usr/bin/openssl ]]; then 
+            #openssl aes-256-cbc -d -a -in $FILENAME -out $CODEDIR/decrypt.tar.gz -k $PHRASE #decrypt the file
+            openssl enc -aes-256-cbc -d -in $FILENAME -out $CODEDIR/decrypt.tar.gz 
+        fi
+        tar -xf $CODEDIR/decrypt.tar.gz -C $CODEDIR
+        #Pushing services and reseting them
+        if [[ -d $HTTPC ]]; then
+            rm -rf $HTTPC && cp -R $CODEDIR$CODESERV/httpd $HTTPC
+            echo "Implementing $HTTPC"
+            service httpd restart
+            systemctl httpd restart
+        elif [[ -d $HTTPD ]]; then
+            rm -rf $HTTPD && cp -R $CODEDIR$CODESERV/www $HTTPD
+            echo "Implementing $HTTPD"
+            service httpd restart
+            systemctl restart httpd
+        elif [[ -d $POSTM ]]; then
+            echo "Implementing $POSTM"
+            rm -rf $POSTM && cp -R $CODEDIR$CODESERV/postfix $POSTM
+            postfix reload
+        elif [[ -d $SSHD ]]; then
+            echo "Implementing $SSHD"
+            rm -rf $SSHD && cp -R $CODEDIR$CODESERV/ssh $SSHD
+            systemctl restart ssh
+            service ssh restart
+        elif [[ -d $SMB ]]; then
+            echo "Implementing $SMB"
+            rm -rf $SMB && cp -R $CODEDIR$CODESERV/samba $SMB
+            service smb restart
+            systemctl restart smb.service
+            systemctl restart nmb.service
+        elif [[ -d $DNSC ]]; then
+            if [[ -d /etc/bind ]]; then
+                echo "Implementing $DNSC"
+                rm -rf $DNSC && cp -R $CODEDIR$CODESERV/named.conf $DNSC
+            elif [[ -e /etc/named.conf ]]; then
+                echo "Implementing $DNSC" 
+                rm -rf $DNSC && cp $CODEDIR$CODESERV/named.conf $DNSC
+                rm -rf $DNSD && cp -R $CODEDIR$CODESERV/named $DNSD
+            fi
+        elif [[ -d /etc/mysql ]]; then
+            echo "Implementing $SQLC"
+            rm -rf $SQLC && cp -R $CODEDIR$CODESERV/mysql $SQLC
+        else
+            echo "No known service implemented on the system. Check logging for details!"
+        fi
+        echo "Backup has been implemented on to the system!"
+    fi
+}
+echo "1: Manually Backup Files"
+echo "2: Manually Backup and Implment an automated script"
+echo "3: Implement restore of a backup"
+echo "0: Exit"
+read CHOICE
+options choice
+
+        if [[ -d $DNSC ]]; then
+            cp -R $DNSC $HOMESERV
+        fi 
+        if [[ -d $DNSD ]]; then
+            cp -R $DNSD $HOMESERV
+        fi
+        if [[ -d $POSTM ]]; then
+            cp -R $POSTM $HOMESERV
+        fi
+        if [[ -d  $SSHD ]]; then
+            cp -R $SSHD $HOMESERV
+        fi
+
+        tar -cpzf $DESTINATION $HOME #create the backup
+        chmod 600 $DESTINATION #Apply respecting permissions
+        #Apply password encryption
+        echo "Enter encrypted passphrase for $DESTINATION: "
+        read PHRASE
+        ENCFILE=$HOME$BACKUPTIME.encrypt
+        if [[ -e /usr/bin/openssl ]]; then
+            #openssl enc -k $PHRASE -aes-256-cbc -in $DESTINATION -out $ENCFILE #securing folder
+            openssl aes-256-cbc -salt -in $DESTINATION -out $ENCFILE -base64 -k $PHRASE
+
+        fi
+        #if [[ -e /usr/bin/gpg ]]; then
+        #    gpg --passphrase $PHRASE -d $FILENAME >> $ENCFILE
+        #else
+        #    openssl enc -k $PHRASE -aes-256-cbc -in $DESTINATION -out $ENCFILE #securing folder
+        #fi 
+        if [[ -e $ENCFILE ]]; then
+            echo "File encrypted successfully!"
+        else
+            echo "File encrypted unsuccessfully, check logs for troubleshooting!"
+        fi 
+
+        #Securely move the encrypted backup over to another target
+        echo "Do you want to secure copy the backup?(Y/N)"
+        read OP1 
+        if [[ $OP1 == "Y" ]]; then
+            echo "Please enter username, ip address, and remote directory of the target: "
+            read NAME ADDRESS DIRECT
+            scp $ENCFILE $NAME@$ADDRESS:$DIRECT
+            echo "Secure Copy Completed"
+        fi
+        echo "Exiting now!"
+
+    elif [[ $CHOICE -eq 2 ]]; then #2: Manually Backup and Implment an automated script
+        #Grabbing logging info
+        cp $LASTLOG $HOMELOGS
+        cp $DMESG $HOMELOGS
+        cp $AUTH $HOMELOGS
+        cp $FAIL $HOMELOGS
+        cp $FAIL2 $HOMELOGS
+        cp $LASTLOG $HOMELOGS
+        cp $LOGOUT $HOMELOGS
+        if [[ -e $SQLL ]]; then
+            cp $SQLL $HOMELOGS
+        fi
+        if [[ -e $IPTABLES ]]; then
+            cp $IPTABLES $HOMELOGS
+        fi
+        #Grabbing service files
+        if [[ -d $HTTPC ]]; then
+            cp -R $HTTPC $HOMESERV
+        fi
+        if [[ -d $HTTPD ]]; then 
+            cp -R $HTTPD $HOMESERV
+        fi
+        if [[ -d $HTTPV ]]; then
+            cp -R $HTTPV $HOMESERV
+        fi 
+        if [[ -d $SQLC ]]; then
+            cp -R $SQLC $HOMESERV
+        fi
+        if [[ -d $SMB ]]; then
+            cp -R $SMB $HOMESERV
+        fi
+        if [[ -d $DNSC ]]; then
+            cp -R $DNSC $HOMESERV
+        fi 
+        if [[ -d $DNSD ]]; then
+            cp -R $DNSD $HOMESERV
+        fi
+        if [[ -d $POSTM ]]; then
+            cp -R $POSTM $HOMESERV
+        fi
+        if [[ -d  $SSHD ]]; then
+            cp -R $SSHD $HOMESERV
+        fi
+        tar -cpzf $DESTINATION $HOME #create the backup
+        chmod 600 $DESTINATION #Apply respecting permissions
+        #Apply password encryption
+        echo "Enter encrypted passphrase for $DESTINATION (This will be used for reoccuring backups):  "
+        read PHRASE
+        ENCFILE=$HOME$BACKUPTIME.encrypt
+        #if [[ -e /usr/bin/gpg ]]; then
+        #    gpg --passphrase $PHRASE -c $FILENAME 
+        #else #insecure due to padding issues
+        #    openssl enc -k $PHRASE -aes-256-cbc -in $DESTINATION -out $ENCFILE #securing files
+        #fi
+        if [[ -e /usr/bin/openssl ]]; then
+            #openssl enc -k $PHRASE -aes-256-cbc -in $DESTINATION -out $ENCFILE #securing folder
+            openssl aes-256-cbc -salt -in $DESTINATION -out $ENCFILE -base64 -k $PHRASE
+        fi
+        if [[ -e $ENCFILE ]]; then
+            echo "File encrypted successfully!"
+        else 
+            echo "File encrypted unsuccessfully, check logs for troubleshooting!"
+        fi 
+
+        #Securely move the encrypted backup over to another target
+        echo "Do you want to secure copy the backup?(Y/N)"
+        read OP1 
+        if [[ $OP1 == "Y" ]]; then
+             echo "Please enter username, ip address, and remote directory (absolute path) of the target: "
+            read NAME ADDRESS DIRECT
+            scp $ENCFILE $NAME@$ADDRESS:$DIRECT
+            echo "Secure Copy Completed"
+        fi
+        cp apprentice.sh $CODEDIR/apprentice.sh
+        chmod 700 $CODEDIR/apprentice.sh
         (crontab -l && echo "*/15 * * * * $CODEDIR/apprentice.sh $PHRASE") |crontab -
         #touch /var/spool/cron/root
         #/usr/bin/crontab /var/spool/cron/root
